@@ -1,8 +1,9 @@
+protobuf==3.20.3
 numpy
 opencv-python
 protobuf
 easydict
-pytorch
+torch
 pillow
 matplotlib
 wxpython
