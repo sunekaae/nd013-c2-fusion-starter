@@ -44,6 +44,9 @@ def doOpen3d():
     vis.run()
     vis.destroy_window()
 
+
 print ("hello world 3")
 
+doOpen3d()
+print ("hello world 4")
 doOpen3d()

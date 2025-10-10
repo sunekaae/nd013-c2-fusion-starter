@@ -32,6 +32,8 @@ import misc.objdet_tools as tools
 
 import open3d as o3d
 
+point_cloud = o3d.geometry.PointCloud()
+
 # visualize lidar point-cloud
 def show_pcl(pcl):
 
@@ -44,18 +46,44 @@ def show_pcl(pcl):
     visualizer = o3d.visualization.VisualizerWithKeyCallback()
     visualizer.create_window(window_name="pointcloud in open3d w callback", width=800, height=600)
 
-    # Step 2: Add geometry (example: a simple point cloud)
-    point_cloud = o3d.geometry.PointCloud()
-    point_cloud.points = o3d.utility.Vector3dVector([[0, 0, 0], [1, 0, 0], [0, 1, 0]])
+    imgpcl = pcl[:, 0:3]
+    intensity = pcl[:, 3]
+
+    # Convert the NumPy array to an Open3D PointCloud object
+    
+    #point_cloud.points = o3d.utility.Vector3dVector([[0, 0, 0], [1, 0, 0], [0, 1, 0]])
+    point_cloud.points = o3d.utility.Vector3dVector(imgpcl)
+#    point_cloud.colors = o3d.utility.Vector3dVector(intensity)
+
+    # Add the point cloud to the visualizer
     visualizer.add_geometry(point_cloud)
+
+    # Visualize the point cloud
+    #o3d.visualization.draw_geometries([point_cloud])
+
+    # Step 2: Add geometry (example: a simple point cloud)
+  #  point_cloud = o3d.geometry.PointCloud()
+  #  point_cloud.points = o3d.utility.Vector3dVector([[0, 0, 0], [1, 0, 0], [0, 1, 0]])
+  #  visualizer.add_geometry(point_cloud)
+
+    # Define a callback function for a key press
+    def change_color(vis):
+        # Change the color of the point cloud
+        point_cloud.colors = o3d.utility.Vector3dVector([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        vis.update_geometry(point_cloud)
+        vis.poll_events()
+        vis.update_renderer()
+        return False  # Return False to indicate no further updates are needed
 
     # Step 3: Register a key callback (example: press 'Q' to quit)
     def quit_callback(vis):
         print("Quitting visualization...")
-        vis.close()
+ #       vis.close()
         return False
 
-    visualizer.register_key_callback(ord("Q"), quit_callback)
+    #visualizer.register_key_callback(ord("Q"), quit_callback)
+    # Register the callback for the 'C' key (ASCII code 67)
+    visualizer.register_key_callback(67, change_color)
 
     # Step 4: Run the visualizer
     visualizer.run()
