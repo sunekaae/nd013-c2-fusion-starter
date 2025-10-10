@@ -1,5 +1,5 @@
 protobuf==3.20.3
-numpy
+numpy<2 # (e.g., numpy==1.26.4
 opencv-python
 protobuf
 easydict
@@ -9,4 +9,4 @@ matplotlib
 wxpython
 shapely
 tqdm
-open3d
+open3d>=0.10,<0.15
