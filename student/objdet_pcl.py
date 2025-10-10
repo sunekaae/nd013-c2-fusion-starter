@@ -75,6 +75,8 @@ def show_range_image(frame, lidar_name):
     pcl[:,1] = np.clip(pcl[:,1], configs.lim_y[0], configs.lim_y[1]) # -25 to 25
     pcl[:,2] = np.clip(pcl[:,2], configs.lim_z[0], configs.lim_z[1]) # -1 to 3
     pcl[:,3] = np.clip(pcl[:,3], configs.lim_r[0], configs.lim_r[1]) # 0 to 1
+    # TODO: check if indeed we want limit to the stated values. The image in the homework shows a 360 image and text states:
+    # "Make sure that the entire range of the data is mapped appropriately onto the 8-bit channels of the OpenCV image so that no data is lost."
 
     # x  # offset + discritization + floor
     x_discretization = (configs.lim_x[1] - configs.lim_x[0]) / configs.bev_height
