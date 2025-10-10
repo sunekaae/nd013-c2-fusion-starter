@@ -30,6 +30,7 @@ from tools.waymo_reader.simple_waymo_open_dataset_reader import dataset_pb2, lab
 # object detection tools and helper functions
 import misc.objdet_tools as tools
 
+import open3d as o3d
 
 # visualize lidar point-cloud
 def show_pcl(pcl):
@@ -39,6 +40,27 @@ def show_pcl(pcl):
     print("student task ID_S1_EX2")
 
     # step 1 : initialize open3d with key callback and create window
+
+    visualizer = o3d.visualization.VisualizerWithKeyCallback()
+    visualizer.create_window(window_name="pointcloud in open3d w callback", width=800, height=600)
+
+    # Step 2: Add geometry (example: a simple point cloud)
+    point_cloud = o3d.geometry.PointCloud()
+    point_cloud.points = o3d.utility.Vector3dVector([[0, 0, 0], [1, 0, 0], [0, 1, 0]])
+    visualizer.add_geometry(point_cloud)
+
+    # Step 3: Register a key callback (example: press 'Q' to quit)
+    def quit_callback(vis):
+        print("Quitting visualization...")
+        vis.close()
+        return False
+
+    visualizer.register_key_callback(ord("Q"), quit_callback)
+
+    # Step 4: Run the visualizer
+    visualizer.run()
+    visualizer.destroy_window()
+
     
     # step 2 : create instance of open3d point-cloud class
 
