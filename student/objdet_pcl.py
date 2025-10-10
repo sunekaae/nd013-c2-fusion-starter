@@ -23,6 +23,7 @@ SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.
 sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
 # waymo open dataset reader
+from student.objdet_detect import load_configs
 from tools.waymo_reader.simple_waymo_open_dataset_reader import utils as waymo_utils
 from tools.waymo_reader.simple_waymo_open_dataset_reader import dataset_pb2, label_pb2
 
@@ -59,18 +60,74 @@ def show_range_image(frame, lidar_name):
     print("student task ID_S1_EX1")
 
     # step 1 : extract lidar data and range image for the roof-mounted lidar
+    pcl = tools.pcl_from_range_image(frame, lidar_name)
     
     # step 2 : extract the range and the intensity channel from the range image
-    
+    configs = load_configs(model_name='fpn_resnet')
+    #stats: ~148.457 rows/points -> x4 -> 593.828
+    #x: observed: -73.24419427991357 to 75.59061433499369
+    #y obserdver: -15.130397498534995 to 73.5403907234094
+    #z observed: -1.483576463713748 to 5.325929859018363
+    # intensity observed: 0.000362396240234375 to 22016.0
+
+    # I observed many negative values outside of the lower limit (behind us, downwards). we clip data based on min/max in config
+    pcl[:,0] = np.clip(pcl[:,0], configs.lim_x[0], configs.lim_x[1]) # 0 to 50
+    pcl[:,1] = np.clip(pcl[:,1], configs.lim_y[0], configs.lim_y[1]) # -25 to 25
+    pcl[:,2] = np.clip(pcl[:,2], configs.lim_z[0], configs.lim_z[1]) # -1 to 3
+    pcl[:,3] = np.clip(pcl[:,3], configs.lim_r[0], configs.lim_r[1]) # 0 to 1
+
+    # x  # offset + discritization + floor
+    x_discretization = (configs.lim_x[1] - configs.lim_x[0]) / configs.bev_height
+    pcl[:,0] = np.floor( (pcl[:,0]-configs.lim_x[0]) / x_discretization )
+
+    # same for y
+    y_discretization = (configs.lim_y[1] - configs.lim_y[0]) / configs.bev_width
+    pcl[:,1] = np.floor( (pcl[:,1]-configs.lim_y[0]) / y_discretization )
+
+    # create the two image arrays
+    range_img = np.zeros((configs.bev_height+1, configs.bev_width+1), dtype=int) # first variable x in lidar is forward, and first variable in image is height. It's 608 from config
+    intensity_img = np.zeros((configs.bev_height+1, configs.bev_width+1), dtype=int)
+    # TODO: check if +1 is needed above
+
     # step 3 : set values <0 to zero
+    # NOTE: already done, before disretization
+    
     
     # step 4 : map the range channel onto an 8-bit scale and make sure that the full range of values is appropriately considered
-    
+    # normalise: (value - min) / (max - min) * 255
+    # offset + normalize + floor
+    pcl[:,2] = np.floor( (pcl[:,2]-configs.lim_z[0]) / (configs.lim_z[1]-configs.lim_z[0]) * 255 )
+    # now, get index for sort to get the higest z for each x/y
+    range_idx = np.lexsort(( -pcl[:,2], pcl[:,1], pcl[:,0] )) # sort by x, then y, then -z (highest z first)
+    range_pcl = pcl[range_idx]
+    _, range_unique_indices = np.unique(range_pcl[:,0:2], axis=0, return_index=True)
+    range_pcl = range_pcl[range_unique_indices]
+       
     # step 5 : map the intensity channel onto an 8-bit scale and normalize with the difference between the 1- and 99-percentile to mitigate the influence of outliers
+    #first identify outliers and normalize:
+    p1 = np.percentile(pcl[:,3], 1)   # 1st percentile
+    p99 = np.percentile(pcl[:,3], 99) # 99th percentile
+    # values below or above percentile gets set to the percentile value
+    pcl[pcl[:, 3] < p1, 3] = p1
+    pcl[pcl[:, 3] > p99, 3] = p99
+
+    pcl[:,3] = np.floor( (pcl[:,3]-configs.lim_r[0]) / (configs.lim_r[1]-configs.lim_r[0]) * 255 )
+
+    # sort and get unique as before
+    intensity_pcl = pcl[:, [0,1,3]] # only x,y,intensity # doing this because picking 0, 1, 3 in the unique() method call wasn't working proper
     
-    # step 6 : stack the range and intensity image vertically using np.vstack and convert the result to an unsigned 8-bit integer
-    
-    img_range_intensity = [] # remove after implementing all steps
+    intensity_idx = np.lexsort(( -intensity_pcl[:,2], intensity_pcl[:,1], intensity_pcl[:,0] )) 
+    intensity_pcl = intensity_pcl[intensity_idx]
+    _, intensity_unique_indices = np.unique(intensity_pcl[:, 0:2], axis=0, return_index=True)
+    intensity_pcl = intensity_pcl[intensity_unique_indices]
+
+    # step 6 : stack the range and intensity image vertically using np.vstack
+    range_img[ range_pcl[:,0].astype(int), range_pcl[:,1].astype(int) ] = range_pcl[:,2].astype(int)
+    intensity_img[ intensity_pcl[:,0].astype(int), intensity_pcl[:,1].astype(int) ] = intensity_pcl[:,2].astype(int)
+
+    stacked = np.vstack([range_img, intensity_img])
+
+    img_range_intensity = stacked
     #######
     ####### ID_S1_EX1 END #######     
     
