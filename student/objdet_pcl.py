@@ -107,13 +107,13 @@ def show_range_image(frame, lidar_name):
        
     # step 5 : map the intensity channel onto an 8-bit scale and normalize with the difference between the 1- and 99-percentile to mitigate the influence of outliers
     #first identify outliers and normalize:
-    p1 = np.percentile(pcl[:,3], 1)   # 1st percentile
-    p99 = np.percentile(pcl[:,3], 99) # 99th percentile
+    percentile_lo = np.percentile(pcl[:,3], 1)   # 1st percentile
+    percentile_hi = np.percentile(pcl[:,3], 90) # 99th percentile
     # values below or above percentile gets set to the percentile value
-    pcl[pcl[:, 3] < p1, 3] = p1
-    pcl[pcl[:, 3] > p99, 3] = p99
+    pcl[pcl[:, 3] < percentile_lo, 3] = percentile_lo
+    pcl[pcl[:, 3] > percentile_hi, 3] = percentile_hi
 
-    pcl[:,3] = np.floor( (pcl[:,3]-configs.lim_r[0]) / (configs.lim_r[1]-configs.lim_r[0]) * 255 )
+    pcl[:,3] = np.floor( (pcl[:,3]-percentile_lo) / (percentile_hi-percentile_lo) * 255 )
 
     # sort and get unique as before
     intensity_pcl = pcl[:, [0,1,3]] # only x,y,intensity # doing this because picking 0, 1, 3 in the unique() method call wasn't working proper
