@@ -217,7 +217,7 @@ def bev_from_pcl(lidar_pcl, configs):
     pcl_copy[:,1] = np.floor(pcl_copy[:,1] / x_discretization)
 
     # step 4 : visualize point-cloud using the function show_pcl from a previous task
-    show_pcl(pcl_copy)
+    # show_pcl(pcl_copy)
     
     #######
     ####### ID_S2_EX1 END #######     
@@ -229,17 +229,42 @@ def bev_from_pcl(lidar_pcl, configs):
     print("student task ID_S2_EX2")
 
     ## step 1 : create a numpy array filled with zeros which has the same dimensions as the BEV map
+    intensity_img = np.zeros((configs.bev_height+1, configs.bev_width+1), dtype=int) # first variable x in lidar is forward, and first variable in image is height. It's 608 from config
 
     # step 2 : re-arrange elements in lidar_pcl_cpy by sorting first by x, then y, then -z (use numpy.lexsort)
+    # now, get index for sort to get the higest z for each x/y
+    # sort and get unique as before
+    intensity_pcl = pcl_copy[:, [0,1,3]] # only x,y,intensity # doing this because picking 0, 1, 3 in the unique() method call wasn't working proper
+
+    intensity_idx = np.lexsort(( -intensity_pcl[:,2], intensity_pcl[:,1], intensity_pcl[:,0] )) # sort by x, then y, then -z (highest z first)
+    intensity_idx = intensity_pcl[intensity_idx]
 
     ## step 3 : extract all points with identical x and y such that only the top-most z-coordinate is kept (use numpy.unique)
     ##          also, store the number of points per x,y-cell in a variable named "counts" for use in the next task
+    _, range_unique_indices = np.unique(intensity_idx[:,0:3], axis=0, return_index=True)
+    intensity_pcl = intensity_idx[range_unique_indices]
+    # TODO: add the variable for counts.
 
     ## step 4 : assign the intensity value of each unique entry in lidar_top_pcl to the intensity map 
     ##          make sure that the intensity is scaled in such a way that objects of interest (e.g. vehicles) are clearly visible    
     ##          also, make sure that the influence of outliers is mitigated by normalizing intensity on the difference between the max. and min. value within the point cloud
+    percentile_lo = np.percentile(intensity_pcl[:,2], 1)   # 1st percentile
+    percentile_hi = np.percentile(intensity_pcl[:,2], 90) # 99th percentile
+    # values below or above percentile gets set to the percentile value
+    intensity_pcl[intensity_pcl[:, 2] < percentile_lo, 2] = percentile_lo
+    intensity_pcl[intensity_pcl[:, 2] > percentile_hi, 2] = percentile_hi
+
+    intensity_pcl[:,2] = np.floor( (intensity_pcl[:,2]-percentile_lo) / (percentile_hi-percentile_lo) * 255 )
+
 
     ## step 5 : temporarily visualize the intensity map using OpenCV to make sure that vehicles separate well from the background
+    intensity_img[ intensity_pcl[:,0].astype(int), intensity_pcl[:,1].astype(int) ] = intensity_pcl[:,2].astype(int)
+
+    if False:
+        img_range = intensity_img.astype(np.uint8)
+        cv2.imshow('range_image', img_range)
+        cv2.waitKey(0)
+
 
     #######
     ####### ID_S2_EX2 END ####### 
