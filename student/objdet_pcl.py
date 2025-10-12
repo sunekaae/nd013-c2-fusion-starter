@@ -95,6 +95,7 @@ def show_pcl(pcl):
     # step 3 : set points in pcd instance by converting the point-cloud into 3d vectors (using open3d function Vector3dVector)
 
     # step 4 : for the first frame, add the pcd instance to visualization using add_geometry; for all other frames, use update_geometry instead
+    # FIXME: perhaps change current approach to align with above, downside is that each frame does not destroy the window and does not clean up after itself
     
     # step 5 : visualize point cloud and keep window open until right-arrow is pressed (key-code 262)
 
@@ -204,12 +205,19 @@ def bev_from_pcl(lidar_pcl, configs):
     print("student task ID_S2_EX1")
 
     ## step 1 :  compute bev-map discretization by dividing x-range by the bev-image height (see configs)
+    x_discretization = (configs.lim_x[1] - configs.lim_x[0]) / configs.bev_height
+
 
     ## step 2 : create a copy of the lidar pcl and transform all metrix x-coordinates into bev-image coordinates    
+    pcl_copy = np.copy(lidar_pcl)
+    pcl_copy[:,0] = np.floor(pcl_copy[:,0] / x_discretization)
 
     # step 3 : perform the same operation as in step 2 for the y-coordinates but make sure that no negative bev-coordinates occur
+    pcl_copy[:,1] = pcl_copy[:,1] - configs.lim_y[0]
+    pcl_copy[:,1] = np.floor(pcl_copy[:,1] / x_discretization)
 
     # step 4 : visualize point-cloud using the function show_pcl from a previous task
+    show_pcl(pcl_copy)
     
     #######
     ####### ID_S2_EX1 END #######     
