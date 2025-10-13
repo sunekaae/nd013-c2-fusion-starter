@@ -61,6 +61,39 @@ def load_configs_model(model_name='darknet', configs=None):
         ####### ID_S3_EX1-3 START #######     
         #######
         print("student task ID_S3_EX1-3")
+        # from github repo: https://github.com/maudzung/SFA3D/blob/0e2f0b63dc4090bd6c08e15505f11d764390087c/sfa/test.py#L89
+        # configs.head_conv = 64
+        # hm_cen = 3
+        # cen_offset = 2
+        # z_coor = 1
+        # dim = 3
+        # direction = 2  # sin, cos
+
+        configs.heads = {
+            'hm_cen': 3,
+            'cen_offset': 2,
+            'direction': 2,
+            'z_coor': 1,
+            'dim': 3
+        }
+        configs.model_path = os.path.join(parent_path, 'tools', 'objdet_models', 'resnet')
+        configs.pretrained_filename = os.path.join(configs.model_path, 'pretrained', 'fpn_resnet_18_epoch_300.pth')
+
+        #configs.pretrained_filename = os.path.join(configs.model_path, 'pretrained', 'fpn_resnet_18_epoch_300.pth')
+        configs.arch = 'fpn_resnet'
+        configs.backbone = 'resnet50' 
+        configs.batch_size = 4
+        configs.cfgfile = None
+        configs.conf_thresh = 0.5
+        configs.distributed = False
+#        configs.img_size = 608
+        configs.input_size = 608
+        configs.nms_thresh = 0.4
+        configs.num_samples = None
+        configs.num_workers = 4
+        configs.pin_memory = True
+#        configs.use_giou_loss = False
+        configs.min_iou=0.5
 
         #######
         ####### ID_S3_EX1-3 END #######     
@@ -118,6 +151,8 @@ def create_model(configs):
         ####### ID_S3_EX1-4 START #######     
         #######
         print("student task ID_S3_EX1-4")
+        model = fpn_resnet.get_pose_net(num_layers=18, heads=configs.heads, head_conv=64, imagenet_pretrained=configs.pretrained_filename)
+        # def get_pose_net(num_layers, heads, head_conv, imagenet_pretrained):
 
         #######
         ####### ID_S3_EX1-4 END #######     
