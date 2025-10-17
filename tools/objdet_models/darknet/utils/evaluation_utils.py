@@ -370,6 +370,7 @@ def post_processing_v2(prediction, conf_thresh=0.95, nms_thresh=0.4):
             detections[0, :6] = (weights * detections[invalid, :6]).sum(0) / weights.sum()
             keep_boxes += [detections[0]]
             detections = detections[~invalid]
+            print ("detected while look")
         if len(keep_boxes) > 0:
             output[image_i] = torch.stack(keep_boxes)
 

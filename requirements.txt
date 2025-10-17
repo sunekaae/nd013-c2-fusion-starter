@@ -1,6 +1,8 @@
 protobuf==3.20.3
 numpy<2 # (e.g., numpy==1.26.4
 opencv-python
+#opencv-python>=4.5.1, <4.5.5
+#opencv-python>=3.4.14, <3.4.16
 protobuf
 easydict
 torch

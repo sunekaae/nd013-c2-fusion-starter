@@ -18,6 +18,9 @@ from easydict import EasyDict as edict
 # add project directory to python path to enable relative imports
 import os
 import sys
+
+from tools.objdet_models.resnet.utils.torch_utils import _sigmoid
+
 PACKAGE_PARENT = '..'
 SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
 sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
@@ -39,7 +42,10 @@ def load_configs_model(model_name='darknet', configs=None):
 
     # get parent directory of this file to enable relative paths
     curr_path = os.path.dirname(os.path.realpath(__file__))
-    parent_path = configs.model_path = os.path.abspath(os.path.join(curr_path, os.pardir))    
+    parent_path = configs.model_path = os.path.abspath(os.path.join(curr_path, os.pardir))
+
+    configs.min_iou=0.5
+
     
     # set parameters according to model type
     if model_name == "darknet":
@@ -48,10 +54,10 @@ def load_configs_model(model_name='darknet', configs=None):
         configs.arch = 'darknet'
         configs.batch_size = 4
         configs.cfgfile = os.path.join(configs.model_path, 'config', 'complex_yolov4.cfg')
-        configs.conf_thresh = 0.5
+        configs.conf_thresh = 0.05
         configs.distributed = False
         configs.img_size = 608
-        configs.nms_thresh = 0.4
+        configs.nms_thresh = 0.5
         configs.num_samples = None
         configs.num_workers = 4
         configs.pin_memory = True
@@ -69,19 +75,13 @@ def load_configs_model(model_name='darknet', configs=None):
         # dim = 3
         # direction = 2  # sin, cos
 
-        configs.heads = {
-            'hm_cen': 3,
-            'cen_offset': 2,
-            'direction': 2,
-            'z_coor': 1,
-            'dim': 3
-        }
+      
         configs.model_path = os.path.join(parent_path, 'tools', 'objdet_models', 'resnet')
         configs.pretrained_filename = os.path.join(configs.model_path, 'pretrained', 'fpn_resnet_18_epoch_300.pth')
 
         #configs.pretrained_filename = os.path.join(configs.model_path, 'pretrained', 'fpn_resnet_18_epoch_300.pth')
         configs.arch = 'fpn_resnet'
-        configs.backbone = 'resnet50' 
+        configs.backbone = 'resnet18' 
         configs.batch_size = 4
         configs.cfgfile = None
         configs.conf_thresh = 0.5
@@ -92,7 +92,6 @@ def load_configs_model(model_name='darknet', configs=None):
         configs.num_samples = None
         configs.num_workers = 4
 #        configs.use_giou_loss = False
-        configs.min_iou=0.5
 
         # from test.py
         configs.pin_memory = True
@@ -119,6 +118,9 @@ def load_configs_model(model_name='darknet', configs=None):
             'dim': configs.num_dim
         }
         configs.num_input_features = 4
+
+        configs.K = 50
+        configs.peak_thresh = 0.2
 
 
         #######
@@ -177,7 +179,14 @@ def create_model(configs):
         ####### ID_S3_EX1-4 START #######     
         #######
         print("student task ID_S3_EX1-4")
-        model = fpn_resnet.get_pose_net(num_layers=18, heads=configs.heads, head_conv=64, imagenet_pretrained=configs.pretrained_filename)
+        #model = fpn_resnet.get_pose_net(num_layers=18, heads=configs.heads, head_conv=64, imagenet_pretrained=configs.pretrained_filename)
+        #arch_parts = configs.arch.split('_')
+        #num_layers = int(arch_parts[-1])
+        num_layers = 18
+        # above maybe not needed
+        print('using ResNet architecture with feature pyramid')
+        model = fpn_resnet.get_pose_net(num_layers=num_layers, heads=configs.heads, head_conv=configs.head_conv,
+                                            imagenet_pretrained=configs.imagenet_pretrained)
         # def get_pose_net(num_layers, heads, head_conv, imagenet_pretrained):
 
         #######
@@ -204,6 +213,9 @@ def detect_objects(input_bev_maps, model, configs):
     # deactivate autograd engine during test to reduce memory usage and speed up computations
     with torch.no_grad():  
 
+        # FIXME: maybe needed for darknet troubleshooting:
+        #input_bev_maps = input_bev_maps.to(torch.float32) / 255.0
+
         # perform inference
         outputs = model(input_bev_maps)
 
@@ -221,10 +233,24 @@ def detect_objects(input_bev_maps, model, configs):
                     x, y, w, l, im, re, _, _, _ = obj
                     yaw = np.arctan2(im, re)
                     detections.append([1, x, y, 0.0, 1.50, w, l, yaw])    
+            print("done darknet detect")
 
         elif 'fpn_resnet' in configs.arch:
             # decode output and perform post-processing
-            
+
+            # copied from darknet approach:
+
+            #output_post = post_processing_v2(outputs, conf_thresh=configs.conf_thresh, nms_thresh=configs.nms_thresh) 
+            outputs['hm_cen'] = _sigmoid(outputs['hm_cen'])
+            outputs['cen_offset'] = _sigmoid(outputs['cen_offset'])
+            # detections size (batch_size, K, 10)
+            detections = decode(outputs['hm_cen'], outputs['cen_offset'], outputs['direction'], outputs['z_coor'],
+                                outputs['dim'], K=configs.K)
+            detections = detections.cpu().numpy().astype(np.float32)
+            detections = post_processing_sfa3d(detections, configs.num_classes, configs.down_ratio, configs.peak_thresh)
+                
+
+
             ####### ID_S3_EX1-5 START #######     
             #######
             print("student task ID_S3_EX1-5")
@@ -253,3 +279,80 @@ def detect_objects(input_bev_maps, model, configs):
     
     return objects    
 
+
+import torch.nn.functional as F
+
+def prep_bev_for_darknet(bev, device, img_size=608):
+    # bev can be np.ndarray HxWxC or torch.Tensor
+#    if isinstance(bev, np.ndarray):
+#        bev = torch.from_numpy(bev)
+
+    # ensure float32 and normalize 0..1
+    bev = bev.to(torch.float32) / 255.0
+
+    # HWC -> CHW if needed
+#    if bev.ndim == 3 and bev.shape[-1] in (1, 3):
+#        bev = bev.permute(2, 0, 1)
+#    elif bev.ndim == 2:
+#        bev = bev.unsqueeze(0)  # 1xH×W
+
+    # ensure 3 channels (Darknet expects 3)
+#    if bev.shape[0] == 1:
+#        bev = bev.repeat(3, 1, 1)
+#    elif bev.shape[0] > 3:
+#        bev = bev[:3, ...]  # take first 3 if you had more
+
+    # resize to 608×608 (or configs.img_size)
+#    bev = bev.unsqueeze(0)  # B=1
+#    bev = F.interpolate(bev, size=(img_size, img_size), mode="bilinear", align_corners=False)
+
+    return bev.to(device)
+
+# usage:
+# input_bev_maps = prep_bev_for_darknet(input_bev_maps, configs.device, img_size=configs.img_size)
+
+
+
+def post_processing_sfa3d(detections, num_classes=3, down_ratio=4, peak_thresh=0.2):
+    """
+    :param detections: [batch_size, K, 10]
+    # (scores x 1, xs x 1, ys x 1, z_coor x 1, dim x 3, direction x 2, clses x 1)
+    # (scores-0:1, xs-1:2, ys-2:3, z_coor-3:4, dim-4:7, direction-7:9, clses-9:10)
+    :return:
+    """
+    # TODO: Need to consider rescale to the original scale: x, y
+
+    bound_size_x = 50 #TODO: hardcoded for now
+    bound_size_y = 50 #TODO: hardcoded for now
+    BEV_HEIGHT=608 #TODO: hardcoded for now
+    BEV_WIDTH=608 #TODO: hardcoded for now
+    # bound_size_z = boundary['maxZ'] - boundary['minZ']
+
+    ret = []
+    for i in range(detections.shape[0]):
+        top_preds = {}
+        classes = detections[i, :, -1]
+        for j in range(num_classes):
+            inds = (classes == j)
+            # x, y, z, h, w, l, yaw
+            top_preds[j] = np.concatenate([
+                detections[i, inds, 0:1],
+                detections[i, inds, 1:2] * down_ratio,
+                detections[i, inds, 2:3] * down_ratio,
+                detections[i, inds, 3:4],
+                detections[i, inds, 4:5],
+                detections[i, inds, 5:6] / bound_size_y * BEV_WIDTH,
+                detections[i, inds, 6:7] / bound_size_x * BEV_HEIGHT,
+                get_yaw(detections[i, inds, 7:9]).astype(np.float32)], axis=1)
+            # Filter by peak_thresh
+            if len(top_preds[j]) > 0:
+                keep_inds = (top_preds[j][:, 0] > peak_thresh)
+                top_preds[j] = top_preds[j][keep_inds]
+        ret.append(top_preds)
+
+    return ret
+
+
+
+def get_yaw(direction):
+    return np.arctan2(direction[:, 0:1], direction[:, 1:2])
