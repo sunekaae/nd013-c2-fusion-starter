@@ -87,13 +87,39 @@ def load_configs_model(model_name='darknet', configs=None):
         configs.conf_thresh = 0.5
         configs.distributed = False
 #        configs.img_size = 608
-        configs.input_size = 608
+#        configs.input_size = 608
         configs.nms_thresh = 0.4
         configs.num_samples = None
         configs.num_workers = 4
-        configs.pin_memory = True
 #        configs.use_giou_loss = False
         configs.min_iou=0.5
+
+        # from test.py
+        configs.pin_memory = True
+        configs.distributed = False  # For testing on 1 GPU only
+
+        configs.input_size = (608, 608)
+        configs.hm_size = (152, 152)
+        configs.down_ratio = 4
+        configs.max_objects = 50
+
+        configs.imagenet_pretrained = False
+        configs.head_conv = 64
+        configs.num_classes = 3
+        configs.num_center_offset = 2
+        configs.num_z = 1
+        configs.num_dim = 3
+        configs.num_direction = 2  # sin, cos
+
+        configs.heads = {
+            'hm_cen': configs.num_classes,
+            'cen_offset': configs.num_center_offset,
+            'direction': configs.num_direction,
+            'z_coor': configs.num_z,
+            'dim': configs.num_dim
+        }
+        configs.num_input_features = 4
+
 
         #######
         ####### ID_S3_EX1-3 END #######     
