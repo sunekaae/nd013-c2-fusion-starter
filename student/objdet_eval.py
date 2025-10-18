@@ -11,9 +11,11 @@
 #
 
 # general package imports
+import cv2
 import numpy as np
 import matplotlib
-matplotlib.use('wxagg') # change backend so that figure maximizing works on Mac as well     
+matplotlib.use('TkAgg') # change backend so that figure maximizing works on Mac as well     
+# maybe MacOSX
 import matplotlib.pyplot as plt
 
 import torch
@@ -49,16 +51,52 @@ def measure_detection_performance(detections, labels, labels_valid, min_iou=0.5)
             print("student task ID_S4_EX1 ")
 
             ## step 1 : extract the four corners of the current label bounding-box
+            # compute location of each corner of a box and returns [front_left, rear_left, rear_right, front_right]
+
+            #  compute_box_corners(x,y,w,l,yaw):
+            fl,rl,rr,fr = tools.compute_box_corners(label.box.center_x, label.box.center_y, label.box.width, label.box.length, label.box.heading)
             
             ## step 2 : loop over all detected objects
+            for detection in detections:
 
                 ## step 3 : extract the four corners of the current detection
+                #   1, # 0: class id for the object type vehicle
+                #   (float(detectionTensor[2]) * x_discretization) + configs.lim_x[0], # 2: y # ex tensor(217.6962)
+                #   (float(detectionTensor[1]) * x_discretization) + configs.lim_y[0], # 1: x # ex: tensor(351.0266)
+                #   (float(detectionTensor[3]) * x_discretization) + configs.lim_z[0], # 3: z # ex 0.0
+                #   (float(detectionTensor[4]) * x_discretization), # 4: h # ex 1.5
+                #   (float(detectionTensor[5]) * x_discretization), # 5: w # ex tensor(23.1756)
+                #   (float(detectionTensor[6]) * x_discretization), # 6: l # ex 51.2127
+                #   float(detectionTensor[7]) # 7: yaw # ex -0.0210
+
+                # compute_box_corners(x,y,w,l,yaw):
+                d_fl, d_rl, d_rr, d_fr = tools.compute_box_corners(detection[1], detection[2], detection[5], detection[6], detection[7])
                 
                 ## step 4 : computer the center distance between label and detection bounding-box in x, y, and z
+                dist_x = abs(label.box.center_x - detection[1])
+                dist_y = abs(label.box.center_y - detection[2])
+                dist_z = abs(label.box.center_z - detection[3])
+                # FIXME: perhaps index 3 is off (-1 shoud have been 1). it's the z value. seems it's wrong in the detection, hardcoded.
+                # Euclidean distance
+                dist_3d = np.sqrt(dist_x**2 + dist_y**2 + dist_z**2)
                 
+                label_corners = np.array([fl,rl,rr,fr], dtype=np.float32)
+                d_corners = np.array([d_fl, d_rl, d_rr, d_fr], dtype=np.float32)
                 ## step 5 : compute the intersection over union (IOU) between label and detection bounding-box
+
+                inter_area, inter_poly = cv2.intersectConvexConvex(d_corners, label_corners)
+                if inter_area <= 0:
+                    iou = 0.0
+                else:
+                    area_det = abs(cv2.contourArea(d_corners))
+                    area_label  = abs(cv2.contourArea(label_corners))
+                    union = area_det + area_label - inter_area
+                    iou = float(inter_area / max(union, 1e-8))
                 
                 ## step 6 : if IOU exceeds min_iou threshold, store [iou,dist_x, dist_y, dist_z] in matches_lab_det and increase the TP count
+                if iou > min_iou:
+                    matches_lab_det.append([iou, dist_x, dist_y, dist_z])
+                    true_positives += 1
                 
             #######
             ####### ID_S4_EX1 END #######     
@@ -75,15 +113,22 @@ def measure_detection_performance(detections, labels, labels_valid, min_iou=0.5)
     print("student task ID_S4_EX2")
     
     # compute positives and negatives for precision/recall
+
+    positive_labels = 0
+    for obj in labels_valid:
+        if obj:
+            positive_labels += 1
+
     
     ## step 1 : compute the total number of positives present in the scene
-    all_positives = 0
+    all_positives = positive_labels + len(detections)
 
     ## step 2 : compute the number of false negatives
-    false_negatives = 0
+    false_negatives = positive_labels - true_positives
 
     ## step 3 : compute the number of false positives
-    false_positives = 0
+    false_positives = max(0, len(detections) - true_positives) #number of detections minus true positievs. but no negative numbers.
+
     
     #######
     ####### ID_S4_EX2 END #######     
@@ -111,12 +156,21 @@ def compute_performance_stats(det_performance_all):
     print('student task ID_S4_EX3')
 
     ## step 1 : extract the total number of positives, true positives, false negatives and false positives
+    total_positives = 0
+    total_true_positives = 0
+    total_false_negatives = 0
+    total_false_positives = 0
+    for item in pos_negs:
+        total_positives += item[0]
+        total_true_positives += item[1]
+        total_false_negatives += item[2]
+        total_false_positives += item[3]
     
     ## step 2 : compute precision
-    precision = 0.0
+    precision = total_true_positives / (total_positives)
 
     ## step 3 : compute recall 
-    recall = 0.0
+    recall = total_true_positives / (total_true_positives + total_false_negatives)
 
     #######    
     ####### ID_S4_EX3 END #######     
