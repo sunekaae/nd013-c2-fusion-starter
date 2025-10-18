@@ -111,6 +111,7 @@ def load_configs_model(model_name='darknet', configs=None):
 
         configs.K = 50
         configs.peak_thresh = 0.2
+        configs.num_layers = 18
 
 
         #######
@@ -169,15 +170,9 @@ def create_model(configs):
         ####### ID_S3_EX1-4 START #######     
         #######
         print("student task ID_S3_EX1-4")
-        #model = fpn_resnet.get_pose_net(num_layers=18, heads=configs.heads, head_conv=64, imagenet_pretrained=configs.pretrained_filename)
-        #arch_parts = configs.arch.split('_')
-        #num_layers = int(arch_parts[-1])
-        num_layers = 18
-        # above maybe not needed
         
-        model = fpn_resnet.get_pose_net(num_layers=num_layers, heads=configs.heads, head_conv=configs.head_conv,
+        model = fpn_resnet.get_pose_net(num_layers=configs.num_layers, heads=configs.heads, head_conv=configs.head_conv,
                                             imagenet_pretrained=configs.imagenet_pretrained)
-        # def get_pose_net(num_layers, heads, head_conv, imagenet_pretrained):
 
         #######
         ####### ID_S3_EX1-4 END #######     
@@ -224,17 +219,19 @@ def detect_objects(input_bev_maps, model, configs):
         elif 'fpn_resnet' in configs.arch:
             # decode output and perform post-processing
 
-            # copied from darknet approach:
+            # copied from darknet approach, in test.py from SFA repo
 
-            #output_post = post_processing_v2(outputs, conf_thresh=configs.conf_thresh, nms_thresh=configs.nms_thresh) 
             outputs['hm_cen'] = _sigmoid(outputs['hm_cen'])
             outputs['cen_offset'] = _sigmoid(outputs['cen_offset'])
-            # detections size (batch_size, K, 10)
+
             detections = decode(outputs['hm_cen'], outputs['cen_offset'], outputs['direction'], outputs['z_coor'],
                                 outputs['dim'], K=configs.K)
             detections = detections.cpu().numpy().astype(np.float32)
             detections = post_processing(detections, configs)
-            detections = detections[0][1]   
+            detections = detections[0][1] # results are in index 0. vehicles are then index 1. 
+
+            for obj in detections:
+                obj[7] = -obj[7]  # change yaw direction to match darknet convention. There was an explicit note in the assignment about this.
 
 
             ####### ID_S3_EX1-5 START #######     
