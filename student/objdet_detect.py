@@ -77,7 +77,7 @@ def load_configs_model(model_name='darknet', configs=None):
         configs.backbone = 'resnet18' 
         configs.batch_size = 4
         configs.cfgfile = None
-        configs.conf_thresh = 0.5
+        configs.conf_thresh = 0.2
         configs.distributed = False
         configs.nms_thresh = 0.4
         configs.num_samples = None
