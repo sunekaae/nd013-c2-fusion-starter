@@ -42,30 +42,29 @@ def show_pcl(pcl):
     print("student task ID_S1_EX2")
 
     # step 1 : initialize open3d with key callback and create window
-
     visualizer = o3d.visualization.VisualizerWithKeyCallback()
     visualizer.create_window(window_name="pointcloud in open3d w callback", width=800, height=600)
 
     imgpcl = pcl[:, 0:3]
-    intensity = pcl[:, 3]
 
     # Convert the NumPy array to an Open3D PointCloud object
-    
-    #point_cloud.points = o3d.utility.Vector3dVector([[0, 0, 0], [1, 0, 0], [0, 1, 0]])
     point_cloud.points = o3d.utility.Vector3dVector(imgpcl)
-#    point_cloud.colors = o3d.utility.Vector3dVector(intensity)
 
+    # Step 2: Add geometry (example: a simple point cloud)
     # Add the point cloud to the visualizer
     visualizer.add_geometry(point_cloud)
 
-    # Visualize the point cloud
-    #o3d.visualization.draw_geometries([point_cloud])
+    # Step 3: Register a key callback (example: press 'Q' to quit)
+    def quit_callback(vis):
+        print("Quitting visualization...")
+ #       vis.close()
+        return False
 
-    # Step 2: Add geometry (example: a simple point cloud)
-  #  point_cloud = o3d.geometry.PointCloud()
-  #  point_cloud.points = o3d.utility.Vector3dVector([[0, 0, 0], [1, 0, 0], [0, 1, 0]])
-  #  visualizer.add_geometry(point_cloud)
+    # Step 4: Run the visualizer
+    visualizer.run()
+    visualizer.destroy_window()
 
+    # FIXME: maybe delete this change color stuff?
     # Define a callback function for a key press
     def change_color(vis):
         # Change the color of the point cloud
@@ -74,21 +73,9 @@ def show_pcl(pcl):
         vis.poll_events()
         vis.update_renderer()
         return False  # Return False to indicate no further updates are needed
-
-    # Step 3: Register a key callback (example: press 'Q' to quit)
-    def quit_callback(vis):
-        print("Quitting visualization...")
- #       vis.close()
-        return False
-
-    #visualizer.register_key_callback(ord("Q"), quit_callback)
+    
     # Register the callback for the 'C' key (ASCII code 67)
     visualizer.register_key_callback(67, change_color)
-
-    # Step 4: Run the visualizer
-    visualizer.run()
-    visualizer.destroy_window()
-
     
     # step 2 : create instance of open3d point-cloud class
 
@@ -113,21 +100,23 @@ def show_range_image(frame, lidar_name):
     # step 1 : extract lidar data and range image for the roof-mounted lidar
     pcl = tools.pcl_from_range_image(frame, lidar_name)
     
-    # step 2 : extract the range and the intensity channel from the range image
-    configs = load_configs(model_name='fpn_resnet')
     #stats: ~148.457 rows/points -> x4 -> 593.828
     #x: observed: -73.24419427991357 to 75.59061433499369
     #y obserdver: -15.130397498534995 to 73.5403907234094
     #z observed: -1.483576463713748 to 5.325929859018363
     # intensity observed: 0.000362396240234375 to 22016.0
 
+    # step 2 : extract the range and the intensity channel from the range image
+    configs = load_configs() # cannot find another way to get access to configs
+
     # I observed many negative values outside of the lower limit (behind us, downwards). we clip data based on min/max in config
     pcl[:,0] = np.clip(pcl[:,0], configs.lim_x[0], configs.lim_x[1]) # 0 to 50
     pcl[:,1] = np.clip(pcl[:,1], configs.lim_y[0], configs.lim_y[1]) # -25 to 25
     pcl[:,2] = np.clip(pcl[:,2], configs.lim_z[0], configs.lim_z[1]) # -1 to 3
     pcl[:,3] = np.clip(pcl[:,3], configs.lim_r[0], configs.lim_r[1]) # 0 to 1
-    # TODO: check if indeed we want limit to the stated values. The image in the homework shows a 360 image and text states:
-    # "Make sure that the entire range of the data is mapped appropriately onto the 8-bit channels of the OpenCV image so that no data is lost."
+    # Note: The image in the homework shows a 360 image and text states:
+    #       "Make sure that the entire range of the data is mapped appropriately onto the 8-bit channels of the OpenCV image so that no data is lost."
+    #       but seems it makes more sense to just look ahead based on the config
 
     # x  # offset + discritization + floor
     x_discretization = (configs.lim_x[1] - configs.lim_x[0]) / configs.bev_height
@@ -140,10 +129,10 @@ def show_range_image(frame, lidar_name):
     # create the two image arrays
     range_img = np.zeros((configs.bev_height+1, configs.bev_width+1), dtype=int) # first variable x in lidar is forward, and first variable in image is height. It's 608 from config
     intensity_img = np.zeros((configs.bev_height+1, configs.bev_width+1), dtype=int)
-    # TODO: check if +1 is needed above
+    # Note: the +1 on the size initialisation enabled for rounding, but perhaps is not required.
 
     # step 3 : set values <0 to zero
-    # NOTE: already done, before disretization
+    # NOTE: already done, before discretization
     
     
     # step 4 : map the range channel onto an 8-bit scale and make sure that the full range of values is appropriately considered
@@ -159,7 +148,7 @@ def show_range_image(frame, lidar_name):
     # step 5 : map the intensity channel onto an 8-bit scale and normalize with the difference between the 1- and 99-percentile to mitigate the influence of outliers
     #first identify outliers and normalize:
     percentile_lo = np.percentile(pcl[:,3], 1)   # 1st percentile
-    percentile_hi = np.percentile(pcl[:,3], 90) # 99th percentile
+    percentile_hi = np.percentile(pcl[:,3], 90) # 90th percentile
     # values below or above percentile gets set to the percentile value
     pcl[pcl[:, 3] < percentile_lo, 3] = percentile_lo
     pcl[pcl[:, 3] > percentile_hi, 3] = percentile_hi
@@ -216,7 +205,7 @@ def bev_from_pcl(lidar_pcl, configs):
     lidar_pcl_copy[:,1] = np.floor(lidar_pcl_copy[:,1] / x_discretization)
 
     # step 4 : visualize point-cloud using the function show_pcl from a previous task
-    # show_pcl(pcl_copy)
+    # show_pcl(lidar_pcl_copy)
     
     #######
     ####### ID_S2_EX1 END #######     
@@ -252,7 +241,6 @@ def bev_from_pcl(lidar_pcl, configs):
     intensity_pcl[intensity_pcl[:, 2] < percentile_lo, 2] = percentile_lo
     intensity_pcl[intensity_pcl[:, 2] > percentile_hi, 2] = percentile_hi
 
-    #intensity_pcl[:,2] = np.floor( (intensity_pcl[:,2]-percentile_lo) / (percentile_hi-percentile_lo) * 255 )
     intensity_pcl[:,2] = np.clip((intensity_pcl[:,2] - percentile_lo) / (percentile_hi - percentile_lo), 0, 1).astype(np.float32) # keep as float
 
     ## step 5 : temporarily visualize the intensity map using OpenCV to make sure that vehicles separate well from the background
@@ -282,7 +270,7 @@ def bev_from_pcl(lidar_pcl, configs):
     height_idx = np.lexsort(( -lidar_pcl_copy[:,2], lidar_pcl_copy[:,1], lidar_pcl_copy[:,0] )) # sort by x, then y, then -z (highest z first)
     height_pcl = lidar_pcl_copy[height_idx]
     _, height_unique_indices = np.unique(height_pcl[:,0:2], axis=0, return_index=True)
-# TODO: check if indeed it's 0:2 or 0:3 for the unique
+
     height_pcl = height_pcl[height_unique_indices]
     low = np.amin(height_pcl[:,2])
     hi = np.amax(height_pcl[:,2])
@@ -325,15 +313,7 @@ def bev_from_pcl(lidar_pcl, configs):
     bev_map[1, :, :] = height_map[:configs.bev_height, :configs.bev_width]  # g_map
     bev_map[0, :, :] = intensity_map[:configs.bev_height, :configs.bev_width]  # b_map
 
-    # Sanity check: range and dtype
-    min_val, max_val = float(bev_map.min()), float(bev_map.max())
-    if max_val > 1.0:
-        print(f"[WARN] BEV values look unnormalized: range [{min_val:.1f}, {max_val:.1f}] (expected 0–1). "
-              f"Did you forget to divide by 255?")
-    #bev_map = bev_map / 255.0  # auto-fix if you prefer
-    bev_map = bev_map.astype(np.float32)
-    assert bev_map.dtype == np.float32, "BEV must be float32 for model input"
-
+    bev_map = bev_map.astype(np.float32) # ensure BEV map is float32 before being passed to model.
 
     # expand dimension of bev_map before converting into a tensor
     s1, s2, s3 = bev_map.shape
