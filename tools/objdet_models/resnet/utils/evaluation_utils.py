@@ -108,6 +108,7 @@ def get_yaw(direction):
     return np.arctan2(direction[:, 0:1], direction[:, 1:2])
 
 
+# copy of SFA version, except different arguments and use of configs
 def post_processing(detections, configs):
     """
     :param detections: [batch_size, K, 10]
