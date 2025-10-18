@@ -267,12 +267,27 @@ def detect_objects(input_bev_maps, model, configs):
     objects = [] 
 
     ## step 1 : check whether there are any detections
+    ## step 2 : loop over all detections
+    for detectionTensor in detections:
+        ## step 3 : perform the conversion using the limits for x, y and z set in the configs structure
 
-        ## step 2 : loop over all detections
-        
-            ## step 3 : perform the conversion using the limits for x, y and z set in the configs structure
-        
-            ## step 4 : append the current object to the 'objects' array
+        # opposite of what we did previously:
+        x_discretization = (configs.lim_x[1] - configs.lim_x[0]) / configs.bev_height # 0.08223684210526316
+        z_discretization = (configs.lim_z[1] - configs.lim_z[0]) / configs.bev_height # 0.08223684210526316
+
+        # intended format: [1, x, y, z, h, w, l, yaw], where 1 denotes the class id for the object type vehicle.
+        detection = [
+            1, # 0: class id for the object type vehicle
+            (float(detectionTensor[2]) * x_discretization) + configs.lim_x[0], # 1: x # ex: tensor(351.0266)
+            (float(detectionTensor[1]) * x_discretization) + configs.lim_y[0],  # 2: y # ex tensor(217.6962)
+            (float(detectionTensor[3]) * x_discretization) + configs.lim_z[0], # 3: z # ex 0.0
+            (float(detectionTensor[4]) * x_discretization) + configs.lim_z[0], # 4: h # ex 1.5
+            (float(detectionTensor[5]) * x_discretization), # 5: w # ex tensor(23.1756)
+            (float(detectionTensor[6]) * x_discretization), # 6: l # ex 51.2127
+            float(detectionTensor[7]) # 7: yaw # ex -0.0210
+        ]
+        ## step 4 : append the current object to the 'objects' array
+        objects.append(detection)
         
     #######
     ####### ID_S3_EX2 START #######   
