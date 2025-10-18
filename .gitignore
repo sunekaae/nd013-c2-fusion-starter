@@ -1,0 +1,10 @@
+/results
+/dataset
+tools/objdet_models/resnet/.DS_Store
+.DS_Store
+/tools/objdet_models/darknet
+/tools/objdet_models/resnet
+tools/waymo_reader/dist/simple_waymo_open_dataset_reader-0.0.0-py3.9.egg
+tools/waymo_reader/simple_waymo_open_dataset_reader.egg-info/PKG-INFO
+tools/waymo_reader/simple_waymo_open_dataset_reader.egg-info/SOURCES.txt
+Depth*
