@@ -35,20 +35,32 @@ class Track:
         # - initialize track state and track score with appropriate values
         ############
 
-        self.x = np.matrix([[49.53980697],
-                        [ 3.41006279],
-                        [ 0.91790581],
+        # TODO: check if it's okay to use measurement z instead of track x.
+        # TODO: I could have used operation on matrix and slices probably.        
+        z_rot = M_rot * meas.z
+        x = z_rot[0, 0]
+        y = z_rot[1, 0]
+        z = z_rot[2, 0]
+             
+        self.x = np.matrix([[x],
+                        [y],
+                        [z],
                         [ 0.        ],
                         [ 0.        ],
                         [ 0.        ]])
-        self.P = np.matrix([[9.0e-02, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00],
-                        [0.0e+00, 9.0e-02, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00],
-                        [0.0e+00, 0.0e+00, 6.4e-03, 0.0e+00, 0.0e+00, 0.0e+00],
-                        [0.0e+00, 0.0e+00, 0.0e+00, 2.5e+03, 0.0e+00, 0.0e+00],
-                        [0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, 2.5e+03, 0.0e+00],
-                        [0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, 2.5e+01]])
-        self.state = 'confirmed'
-        self.score = 0
+
+        P_pos = M_rot * meas.R * M_rot.transpose()
+        self.P = np.matrix([[x**2, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00],
+                        [0.0e+00, y**2, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00],
+                        [0.0e+00, 0.0e+00, z**2, 0.0e+00, 0.0e+00, 0.0e+00],
+                        [0.0e+00, 0.0e+00, 0.0e+00, params.sigma_p44**2, 0.0e+00, 0.0e+00],
+                        [0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, params.sigma_p55**2, 0.0e+00],
+                        [0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, params.sigma_p66**2]])
+        # TODO: maybe use np.diag for simplification
+
+        self.state = 'initialized'
+        #self.score = 0
+        self.score = 1. / params.window
         
         ############
         # END student code
@@ -107,9 +119,20 @@ class Trackmanagement:
             if meas_list: # if not empty
                 if meas_list[0].sensor.in_fov(track.x):
                     # your code goes here
-                    pass 
+                    track.score = track.score - (1. / params.window)
+          #  else:
+           #     track.score = track.score - (1. / params.window)
 
-        # delete old tracks   
+        # delete old tracks  
+        for track in self.track_list:
+            if track.state == 'confirmed':
+                if track.score < 0.6:
+                    self.delete_track(track)
+                # FIXME: implement P11 uncertainty deleation.
+            elif track.state == 'tentative' or track.state == 'initialized':
+                if track.score < 0.15: # FIXME changed from 0.17 to 0.15
+                    self.delete_track(track)
+                # FIXME implement uncertainty deleation.
 
         ############
         # END student code
@@ -135,12 +158,19 @@ class Trackmanagement:
         
     def handle_updated_track(self, track):      
         ############
-        # TODO Step 2: implement track management for updated tracks:
-        # - increase track score
+        # Step 2: implement track management for updated tracks:
+        track.score = track.score + (1. / params.window)
+        if track.score > 1:
+            track.score = 1.
         # - set track state to 'tentative' or 'confirmed'
+        if track.state == 'initialized':
+            if track.score > (1. / params.window):
+                track.state = 'tentative'
+        elif track.state == 'tentative':
+            if track.score > (5*1. / params.window):
+                track.state = 'confirmed'
         ############
 
-        pass
         
         ############
         # END student code
