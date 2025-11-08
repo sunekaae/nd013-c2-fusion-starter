@@ -70,11 +70,14 @@ class Filter:
 
     def predict(self, track):
         ############
-        # TODO Step 1: predict state x and estimation error covariance P to next timestep, save x and P in track
+        # Step 1: predict state x and estimation error covariance P to next timestep, save x and P in track
         ############
 
-        track.set_x(self.F() * track.x)
-        track.set_P(self.F() * track.P * np.transpose(self.F()) + self.Q())
+        new_x = self.F() * track.x
+        new_P = self.F() * track.P * np.transpose(self.F()) + self.Q()
+
+        track.set_x(new_x)
+        track.set_P(new_P)
         
         ############
         # END student code
@@ -82,8 +85,18 @@ class Filter:
 
     def update(self, track, meas):
         ############
-        # TODO Step 1: update state x and covariance P with associated measurement, save x and P in track
+        # Step 1: update state x and covariance P with associated measurement, save x and P in track
         ############
+        H = meas.sensor.get_H(meas.z)
+        gamma = self.gamma(track, meas)
+        S = self.S(track, meas, H)
+        K = track.P * H.transpose() * np.linalg.inv(S)
+        new_x = track.x + K*gamma
+        I = np.identity(params.dim_state)
+        new_P = (I - K*H) * track.P
+
+        track.set_x(new_x)
+        track.set_P(new_P)
         
         ############
         # END student code
@@ -92,10 +105,13 @@ class Filter:
     
     def gamma(self, track, meas):
         ############
-        # TODO Step 1: calculate and return residual gamma
+        # Step 1: calculate and return residual gamma
         ############
+        # z - H*x # residual
+        #gamma = meas.z - meas.sensor.get_H(meas.z)
+        gamma = meas.z - meas.sensor.get_hx(track.x)
 
-        return 0
+        return gamma
         
         ############
         # END student code
@@ -103,10 +119,12 @@ class Filter:
 
     def S(self, track, meas, H):
         ############
-        # TODO Step 1: calculate and return covariance of residual S
+        # Step 1: calculate and return covariance of residual S
         ############
+        # H*P*H.transpose + R
+        S = H * track.P * H.transpose() + meas.R
 
-        return 0
+        return S
         
         ############
         # END student code
