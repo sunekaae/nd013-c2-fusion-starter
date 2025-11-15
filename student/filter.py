@@ -88,7 +88,7 @@ class Filter:
         ############
         # Step 1: update state x and covariance P with associated measurement, save x and P in track
         ############
-        H = meas.sensor.get_H(meas.z)
+        H = meas.sensor.get_H(track.x)
         gamma = self.gamma(track, meas)
         S = self.S(track, meas, H)
         K = track.P * H.transpose() * np.linalg.inv(S)

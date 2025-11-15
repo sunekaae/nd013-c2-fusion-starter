@@ -243,8 +243,8 @@ while True:
             association.associate_and_update(manager, meas_list_lidar, KF)
             
             # associate all camera measurements to all tracks
-            print ("SKIPPING camera")
-#FIXME            association.associate_and_update(manager, meas_list_cam, KF)
+            print ("camera")
+            association.associate_and_update(manager, meas_list_cam, KF)
             
             # save results for evaluation
             result_dict = {}

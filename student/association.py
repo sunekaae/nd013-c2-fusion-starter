@@ -104,8 +104,8 @@ class Association:
         # Step 3: return True if measurement lies inside gate, otherwise False
         ############
         # check if measurement lies inside gate
-                
-        if MHD < chi2.ppf(params.gating_threshold, df=3):
+        dof = 3 if sensor.name == 'lidar' else 2        
+        if MHD < chi2.ppf(params.gating_threshold, df=dof):
             return True
         else:
             return False
@@ -120,18 +120,48 @@ class Association:
         ############
 #        H = np.matrix([[1, 0, 0, 0, 0, 0],
 #                       [0, 1, 0, 0, 0, 0]]) 
-        H = np.zeros((3, track.x.shape[0]))  # (3,6)
-        H[0, 0] = 1.0  # px
-        H[1, 1] = 1.0  # py
-        H[2, 2] = 1.0  # pz
-        gamma = meas.z - H*track.x
-        S = H*track.P*H.transpose() + meas.R
-        MHD = gamma.transpose()*np.linalg.inv(S)*gamma # Mahalanobis distance formula
-        MHD = MHD[0,0]
-        if self.gating(MHD, meas.sensor):
-            return MHD
+        sensor = meas.sensor.name.lower()
+        n = track.x.shape[0]
+
+        if sensor == "lidar":  
+            assert meas.z.shape == (3,1), f"lidar z must be (3,1), got {meas.z.shape}"
+            assert meas.R.shape == (3,3), f"lidar R must be (3,3), got {meas.R.shape}"
+            
+            H = np.zeros((3, n))  # (3,6)
+            H[0,0] = 1.0  # px
+            H[1,1] = 1.0  # py
+            H[2,2] = 1.0  # pz
+            z_pred = H @ track.x
+#            
+            gamma = meas.z - z_pred
+            S = H*track.P*H.transpose() + meas.R
+            MHD = gamma.transpose()*np.linalg.inv(S)*gamma # Mahalanobis distance formula
+            MHD = MHD[0,0]
+            if self.gating(MHD, meas.sensor):
+                return MHD
+            else:
+                return np.inf
+#
+        elif sensor == "camera":
+            assert meas.z.shape == (2,1), f"camera z must be (2,1), got {meas.z.shape}"
+            assert meas.R.shape == (2,2), f"camera R must be (2,2), got {meas.R.shape}"
+            H = meas.sensor.get_H(track.x)
+            z_pred = meas.sensor.get_hx(track.x)
+#            
+            gamma = meas.z - z_pred
+            S = H*track.P*H.transpose() + meas.R
+            MHD = gamma.transpose()*np.linalg.inv(S)*gamma # Mahalanobis distance formula
+            MHD = MHD[0,0]
+            if self.gating(MHD, meas.sensor):
+                return MHD
+            else:
+                return np.inf
+#
+            assert H.shape == (2, n), f"camera H must be (2,{n}), got {H.shape}"
         else:
-            return np.inf
+            raise ValueError(f"Unknown sensor type: {meas.sensor.name}")
+
+
         
         
         ############

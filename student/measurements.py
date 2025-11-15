@@ -44,11 +44,20 @@ class Sensor:
     def in_fov(self, x):
         # check if an object x can be seen by this sensor
         ############
-        # TODO Step 4: implement a function that returns True if x lies in the sensor's field of view, 
+        # Step 4: implement a function that returns True if x lies in the sensor's field of view, 
         # otherwise False.
         ############
-
-        return True
+        # Don't forget to transform from vehicle to sensor coordinates first. The sensor's field of view is given in the attribute fov.
+        pos_veh = np.ones((4, 1)) # homogenous
+        pos_veh[0:3] = x[0:3] 
+        pos_sens = self.veh_to_sens*pos_veh # transform from vehicle to sensor coordinates
+        visible = False
+        if pos_sens[0,0] > 0: 
+            alpha = np.arctan2(pos_sens[1,0], pos_sens[0,0]) # calc angle between object and x-axis
+            # no normalization needed because returned alpha always lies between [-pi/2, pi/2]
+            if alpha > self.fov[0] and alpha < self.fov[1]:
+                visible = True
+        return visible
         
         ############
         # END student code
@@ -70,8 +79,23 @@ class Sensor:
             # - make sure to not divide by zero, raise an error if needed
             # - return h(x)
             ############
+            pos_veh = np.ones((4, 1)) # homogeneous coordinates
+            pos_veh[0:3] = x[0:3] 
+            pos_cam = self.veh_to_sens * pos_veh # transform from vehicle to cam
+            X = float(pos_cam[0,0])   # depth 
+            Y = float(pos_cam[1,0])   # horizontal (image i)
+            Z = float(pos_cam[2,0])   # vertical   (image j)
+            # Avoid division by zero
+            #if pos_sens[2,0] <= 0:
+            eps = 1e-6
+            if X <= eps:
+                return np.array([[np.nan], [np.nan]])
 
-            pass
+            # Project into image plane
+            pixel = np.zeros((2, 1))
+            u = self.f_i * (Y / X) + self.c_i 
+            v = self.f_j * (Z / X) + self.c_j 
+            return np.matrix([[u],[v]])
         
             ############
             # END student code
@@ -112,12 +136,12 @@ class Sensor:
     def generate_measurement(self, num_frame, z, meas_list):
         # generate new measurement from this sensor and add to measurement list
         ############
-        # TODO Step 4: remove restriction to lidar in order to include camera as well
+        # Step 4: remove restriction to lidar in order to include camera as well
         ############
         
-        if self.name == 'lidar':
-            meas = Measurement(num_frame, z, self)
-            meas_list.append(meas)
+#        if self.name == 'lidar':
+        meas = Measurement(num_frame, z, self)
+        meas_list.append(meas)
         return meas_list
         
         ############
@@ -151,12 +175,18 @@ class Measurement:
             self.height = z[3]
             self.yaw = z[6]
         elif sensor.name == 'camera':
-            
             ############
-            # TODO Step 4: initialize camera measurement including z and R 
+            # Step 4: initialize camera measurement including z and R 
             ############
-
-            pass
+            sigma_cam_i = params.sigma_cam_i # measurement noise standard deviation for image i coordinate
+            sigma_cam_j = params.sigma_cam_j # measurement noise standard deviation for image j coordinate
+            self.z = np.zeros((sensor.dim_meas,1)) # measurement vector
+            self.z[0] = z[0]
+            self.z[1] = z[1]
+            self.R = np.matrix([[sigma_cam_i**2, 0], # measurement noise covariance matrix
+                    [0, sigma_cam_j**2]])
+            self.width = z[2]
+            self.length = z[3]
         
             ############
             # END student code
