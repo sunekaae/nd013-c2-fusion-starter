@@ -29,7 +29,7 @@ class Filter:
 
     def F(self):
         ############
-        # TODO Step 1: implement and return system matrix F
+        # Step 1: implement and return system matrix F
         ############
         delta_t = params.dt
         F = np.array([
@@ -48,7 +48,7 @@ class Filter:
 
     def Q(self):
         ############
-        # TODO Step 1: implement and return process noise covariance Q
+        # Step 1: implement and return process noise covariance Q
         ############
         dt = params.dt
         q4 = (dt**4)*self.q/4
