@@ -106,6 +106,7 @@ class Trackmanagement:
         
     def manage_tracks(self, unassigned_tracks, unassigned_meas, meas_list):  
         ############
+        print ("manage_tracks")
         # TODO Step 2: implement track management:
         # - decrease the track score for unassigned tracks
         # - delete tracks if the score is too low or P is too big (check params.py for parameters that might be helpful, but
@@ -113,6 +114,7 @@ class Trackmanagement:
         ############
         
         # decrease score for unassigned tracks
+        print ("unassigned tracks: " + str(len(unassigned_tracks)))
         for i in unassigned_tracks:
             track = self.track_list[i]
             # check visibility    
@@ -120,19 +122,24 @@ class Trackmanagement:
                 if meas_list[0].sensor.in_fov(track.x):
                     # your code goes here
                     track.score = track.score - (1. / params.window)
-          #  else:
-           #     track.score = track.score - (1. / params.window)
+           # else:
+            #    track.score = track.score - (1. / params.window)
+
 
         # delete old tracks  
+        print ("self.track_list: " + str(len(self.track_list)))
         for track in self.track_list:
+            print("P[0,0]: " + str(track.P[0,0]) + ". P[1,1]: " + str(track.P[1,1]) + ". max_P: " + str(params.max_P))
             if track.state == 'confirmed':
                 if track.score < 0.6:
                     self.delete_track(track)
-                # FIXME: implement P11 uncertainty deleation.
+                elif (track.P[0,0] > params.max_P) or (track.P[1,1] > params.max_P):
+                    self.delete_track(track)
             elif track.state == 'tentative' or track.state == 'initialized':
                 if track.score < 0.15: # FIXME changed from 0.17 to 0.15
                     self.delete_track(track)
-                # FIXME implement uncertainty deleation.
+                elif (track.P[0,0] > params.max_P) or (track.P[1,1] > params.max_P):
+                    self.delete_track(track)
 
         ############
         # END student code
@@ -156,8 +163,11 @@ class Trackmanagement:
         print('deleting track no.', track.id)
         self.track_list.remove(track)
         
-    def handle_updated_track(self, track):      
+    def handle_updated_track(self, track): 
+         # update score and track state      
         ############
+
+
         # Step 2: implement track management for updated tracks:
         track.score = track.score + (1. / params.window)
         if track.score > 1:

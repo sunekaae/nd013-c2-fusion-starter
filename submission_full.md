@@ -10,6 +10,11 @@ Track: ![Tracking](tracking.png)
 # Track Management
 > Initialize, update and delete tracks
 
+Please upload the RMSE plot as png or pdf file.
+
+Mean RSME: 0.78
+Image: ![RMSE](step2_rsme.png)
+
 
 
 
