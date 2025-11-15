@@ -131,12 +131,12 @@ class Trackmanagement:
         for track in self.track_list:
             print("P[0,0]: " + str(track.P[0,0]) + ". P[1,1]: " + str(track.P[1,1]) + ". max_P: " + str(params.max_P))
             if track.state == 'confirmed':
-                if track.score < 0.6:
+                if track.score < params.delete_threshold:
                     self.delete_track(track)
                 elif (track.P[0,0] > params.max_P) or (track.P[1,1] > params.max_P):
                     self.delete_track(track)
             elif track.state == 'tentative' or track.state == 'initialized':
-                if track.score < 0.15: # FIXME changed from 0.17 to 0.15
+                if track.score < 0.15: # lower than the score after initialisation
                     self.delete_track(track)
                 elif (track.P[0,0] > params.max_P) or (track.P[1,1] > params.max_P):
                     self.delete_track(track)
@@ -177,7 +177,7 @@ class Trackmanagement:
             if track.score > (1. / params.window):
                 track.state = 'tentative'
         elif track.state == 'tentative':
-            if track.score > (5*1. / params.window):
+            if track.score > params.confirmed_threshold:
                 track.state = 'confirmed'
         ############
 
