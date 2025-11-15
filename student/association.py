@@ -104,7 +104,7 @@ class Association:
         # TODO Step 3: return True if measurement lies inside gate, otherwise False
         ############
         # check if measurement lies inside gate
-        limit = chi2.ppf(0.95, df=2)
+        limit = chi2.ppf(0.95, df=3)
         if MHD < limit:
             return True
         else:
