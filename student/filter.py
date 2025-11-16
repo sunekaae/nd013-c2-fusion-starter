@@ -25,7 +25,8 @@ class Filter:
     '''Kalman filter class'''
     def __init__(self):
         #self.q=0.1 # process noise variable for Kalman filter Q
-        self.q = params.q #* 300 # FIXME testing with 100 multiply as it's per 0.1 second
+        self.q = params.q 
+        # self.q = 300 #* 300 # TODO testing with 300 or 100.
 
     def F(self):
         ############

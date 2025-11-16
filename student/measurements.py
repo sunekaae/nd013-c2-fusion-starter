@@ -200,8 +200,8 @@ class Measurement:
             self.z = np.zeros((sensor.dim_meas,1)) # measurement vector
             self.z[0] = z[0]
             self.z[1] = z[1]
-            sigma_cam_i = 20 #FIXME: experiment
-            sigma_cam_j = 20 #FIXME: experiment
+            sigma_cam_i = 20 #TODO: experiment. doesn't work well with normal setting
+            sigma_cam_j = 20 #TODO: experiment
             self.R = np.matrix([[sigma_cam_i**2, 0], # measurement noise covariance matrix
                     [0, sigma_cam_j**2]])
             self.width = z[2]
