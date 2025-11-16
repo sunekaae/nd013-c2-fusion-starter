@@ -28,9 +28,9 @@ End frame: ![End frame](step3_endframe.png)
 # Sensor Fusion
 > SWBAT fuse measurements from lidar and camera
 
-I am seeing some issues with ghost track being confirmed after introducing camera.
-But the main tracks are still consistent (track 0, 1, 5)
-Video: <video controls src="step4.mp4" title="step 4"></video>
+Three stable tracks (track 0, 1, 11)
+
+Video: <video controls src="Fusion Project Udacity Selfdriving Cars.mp4" title="video"></video>
 RSME: ![rsme](step4_rsme.png)
 End frame: ![end frame](step4_endframe.png)
 
