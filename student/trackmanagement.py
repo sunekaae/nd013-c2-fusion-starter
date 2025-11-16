@@ -26,7 +26,9 @@ class Track:
     '''Track class with state, covariance, id, score'''
     def __init__(self, meas, id):
         print('creating track no.', id)
-        M_rot = meas.sensor.sens_to_veh[0:3, 0:3] # rotation matrix from sensor to vehicle coordinates
+        M_rot = meas.sensor.sens_to_veh[0:3, 0:3]
+        t_trn = meas.sensor.sens_to_veh[0:3, 3:4]
+        p_v = M_rot * meas.z + t_trn
         
         ############
         # TODO Step 2: initialization:
@@ -37,25 +39,31 @@ class Track:
 
         # TODO: check if it's okay to use measurement z instead of track x.
         # TODO: I could have used operation on matrix and slices probably.        
-        z_rot = M_rot * meas.z
-        x = z_rot[0, 0]
-        y = z_rot[1, 0]
-        z = z_rot[2, 0]
+#        z_rot = M_rot * meas.z
+#        x = z_rot[0, 0]
+#        y = z_rot[1, 0]
+#        z = z_rot[2, 0]
              
-        self.x = np.matrix([[x],
-                        [y],
-                        [z],
+        self.x = np.matrix([[p_v[0,0]],
+                        [p_v[1,0]],
+                        [p_v[2,0]],
                         [ 0.        ],
                         [ 0.        ],
                         [ 0.        ]])
 
         P_pos = M_rot * meas.R * M_rot.transpose()
-        self.P = np.matrix([[x**2, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00],
-                        [0.0e+00, y**2, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00],
-                        [0.0e+00, 0.0e+00, z**2, 0.0e+00, 0.0e+00, 0.0e+00],
-                        [0.0e+00, 0.0e+00, 0.0e+00, params.sigma_p44**2, 0.0e+00, 0.0e+00],
-                        [0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, params.sigma_p55**2, 0.0e+00],
-                        [0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, params.sigma_p66**2]])
+        self.P = np.zeros((6, 6))
+        self.P[0:3, 0:3] = P_pos
+        self.P[3,3] = params.sigma_p44**2
+        self.P[4,4] = params.sigma_p55**2
+        self.P[5,5] = params.sigma_p66**2
+
+#        self.P = np.matrix([[x**2, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00],
+#                        [0.0e+00, y**2, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00],
+#                        [0.0e+00, 0.0e+00, z**2, 0.0e+00, 0.0e+00, 0.0e+00],
+#                        [0.0e+00, 0.0e+00, 0.0e+00, params.sigma_p44**2, 0.0e+00, 0.0e+00],
+#                        [0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, params.sigma_p55**2, 0.0e+00],
+#                        [0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, params.sigma_p66**2]])
         # TODO: maybe use np.diag for simplification
 
         self.state = 'initialized'

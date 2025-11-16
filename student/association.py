@@ -137,7 +137,10 @@ class Association:
             z_pred = H @ track.x
 #            
             gamma = meas.z - z_pred
-            S = H*track.P*H.transpose() + meas.R
+            H = np.asarray(H)
+            P = np.asarray(track.P)
+            R = np.asarray(meas.R)
+            S = H @ track.P @ H.transpose() + meas.R
             MHD = gamma.transpose()*np.linalg.inv(S)*gamma # Mahalanobis distance formula
             MHD = MHD[0,0]
             #if self.gating(MHD, meas.sensor):
