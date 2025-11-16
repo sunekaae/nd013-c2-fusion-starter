@@ -107,6 +107,7 @@ class Association:
         # Step 3: return True if measurement lies inside gate, otherwise False
         ############
         # check if measurement lies inside gate
+    
         dof = 3 if sensor.name == 'lidar' else 2        
         if MHD < chi2.ppf(params.gating_threshold, df=dof):
             return True
@@ -181,7 +182,7 @@ class Association:
             track = manager.track_list[ind_track]
             
             # check visibility, only update tracks in fov    
-            if not meas_list[0].sensor.in_fov(track.x):
+            if not meas_list[ind_meas].sensor.in_fov(track.x):
                 continue
             
             # Kalman update
@@ -192,7 +193,7 @@ class Association:
 
             
             # update score and track state 
-            manager.handle_updated_track(track)
+            manager.handle_updated_track(track, meas_list[ind_meas])
             
             # save updated track
             manager.track_list[ind_track] = track

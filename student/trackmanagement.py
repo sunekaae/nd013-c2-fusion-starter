@@ -81,6 +81,7 @@ class Track:
         self.height = meas.height
         self.yaw =  np.arccos(M_rot[0,0]*np.cos(meas.yaw) + M_rot[0,1]*np.sin(meas.yaw)) # transform rotation from sensor to vehicle coordinates
         self.t = meas.t
+        self.lidar_hits = 0
 
     def set_x(self, x):
         self.x = x
@@ -126,10 +127,10 @@ class Trackmanagement:
         for i in unassigned_tracks:
             track = self.track_list[i]
             # check visibility    
-            if meas_list: # if not empty
-                if meas_list[0].sensor.in_fov(track.x):
+#FIXME: avoid FOV            if meas_list: # if not empty
+#FIXME: avoid FOV                if meas_list[0].sensor.in_fov(track.x):
                     # your code goes here
-                    track.score = track.score - (1. / params.window)
+            track.score = track.score - (1. / params.window)
            # else:
             #    track.score = track.score - (1. / params.window)
 
@@ -171,13 +172,18 @@ class Trackmanagement:
         print('deleting track no.', track.id)
         self.track_list.remove(track)
         
-    def handle_updated_track(self, track): 
+    def handle_updated_track(self, track, meas): 
          # update score and track state      
         ############
 
 
         # Step 2: implement track management for updated tracks:
-        track.score = track.score + (1. / params.window)
+        if meas.sensor.name == 'lidar':
+            track.score = track.score + (1. / params.window)
+            track.lidar_hits += 1
+        else:
+            track.score = track.score + (0.3 / params.window)
+
         if track.score > 1:
             track.score = 1.
         # - set track state to 'tentative' or 'confirmed'
@@ -186,7 +192,8 @@ class Trackmanagement:
                 track.state = 'tentative'
         elif track.state == 'tentative':
             if track.score > params.confirmed_threshold:
-                track.state = 'confirmed'
+                if track.lidar_hits > 3:
+                    track.state = 'confirmed'
         ############
 
         
