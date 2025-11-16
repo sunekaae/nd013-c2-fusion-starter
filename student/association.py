@@ -56,6 +56,7 @@ class Association:
                     measurement = meas_list[j]
                     distance = self.MHD(track, measurement, KF)
                     self.association_matrix[i,j] = distance
+        print("association done")
         
         ############
         # END student code
@@ -74,25 +75,27 @@ class Association:
         if self.association_matrix.size == 0:
             return np.nan, np.nan
         
+        lowest_i = 0
+        lowest_j = 0
         lowest_distance = np.inf
-        i = 0
-        j = 0
         for i in range(np.shape(self.association_matrix)[0]):
             for j in range(np.shape(self.association_matrix)[1]):
                 distance = self.association_matrix[i,j]
                 if distance < lowest_distance:
                     lowest_distance = distance
-        update_track = self.unassigned_tracks[i]
-        update_meas = self.unassigned_meas[j]
+                    lowest_i = i
+                    lowest_j = j
+        update_track = self.unassigned_tracks[lowest_i]
+        update_meas = self.unassigned_meas[lowest_j]
         if (update_track==np.inf and update_meas==np.inf):
             return np.nan, np.nan 
         
         # remove from list
-        self.unassigned_tracks.pop(i) 
-        self.unassigned_meas.pop(j)
+        self.unassigned_tracks.pop(lowest_i)
+        self.unassigned_meas.pop(lowest_j)
         # self.association_matrix = np.matrix([])
-        self.association_matrix = np.delete(self.association_matrix, i, axis=0)
-        self.association_matrix = np.delete(self.association_matrix, j, axis=1)
+        self.association_matrix = np.delete(self.association_matrix, lowest_i, axis=0)
+        self.association_matrix = np.delete(self.association_matrix, lowest_j, axis=1)
             
         ############
         # END student code
@@ -137,10 +140,10 @@ class Association:
             S = H*track.P*H.transpose() + meas.R
             MHD = gamma.transpose()*np.linalg.inv(S)*gamma # Mahalanobis distance formula
             MHD = MHD[0,0]
-            if self.gating(MHD, meas.sensor):
-                return MHD
-            else:
-                return np.inf
+            #if self.gating(MHD, meas.sensor):
+            return MHD
+            #else:
+            #    return np.inf
 #
         elif sensor == "camera":
             assert meas.z.shape == (2,1), f"camera z must be (2,1), got {meas.z.shape}"
@@ -152,10 +155,10 @@ class Association:
             S = H*track.P*H.transpose() + meas.R
             MHD = gamma.transpose()*np.linalg.inv(S)*gamma # Mahalanobis distance formula
             MHD = MHD[0,0]
-            if self.gating(MHD, meas.sensor):
-                return MHD
-            else:
-                return np.inf
+            #if self.gating(MHD, meas.sensor):
+            return MHD
+            #else:
+            #    return np.inf
 #
             assert H.shape == (2, n), f"camera H must be (2,{n}), got {H.shape}"
         else:
