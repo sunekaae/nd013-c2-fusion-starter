@@ -114,7 +114,7 @@ class Sensor:
                 raise NameError('Jacobian not defined for this x!')
             else:
                 # precompute:
-                # FIXME: check up
+                # TODO. perhaps follow up on the difference between the expressions
                 X = R[0,:]@x[:3] + T[0]
                 Y = R[1,:]@x[:3] + T[1]
                 Z = R[2,:]@x[:3] + T[2]

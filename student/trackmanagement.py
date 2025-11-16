@@ -127,10 +127,10 @@ class Trackmanagement:
         for i in unassigned_tracks:
             track = self.track_list[i]
             # check visibility    
-#FIXME: avoid FOV            if meas_list: # if not empty
-#FIXME: avoid FOV                if meas_list[0].sensor.in_fov(track.x):
+#TODO: avoid FOV            if meas_list: # if not empty
+#TODO: avoid FOV                if meas_list[0].sensor.in_fov(track.x):
                     # your code goes here
-            track.score = track.score - (1. / params.window)
+            track.score = track.score - (2. / params.window)
            # else:
             #    track.score = track.score - (1. / params.window)
 
