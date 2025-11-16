@@ -93,8 +93,8 @@ class Sensor:
 
             # Project into image plane
             pixel = np.zeros((2, 1))
-            u = self.f_i * (Y / X) + self.c_i 
-            v = self.f_j * (Z / X) + self.c_j 
+            u = self.f_i * (-Y / X) + self.c_i 
+            v = self.f_j * (-Z / X) + self.c_j 
             return np.matrix([[u],[v]])
         
             ############
@@ -113,24 +113,41 @@ class Sensor:
             if R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0] == 0: 
                 raise NameError('Jacobian not defined for this x!')
             else:
-                H[0,0] = self.f_i * (-R[1,0] / (R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])
-                                    + R[0,0] * (R[1,0]*x[0] + R[1,1]*x[1] + R[1,2]*x[2] + T[1]) \
-                                        / ((R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])**2))
-                H[1,0] = self.f_j * (-R[2,0] / (R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])
-                                    + R[0,0] * (R[2,0]*x[0] + R[2,1]*x[1] + R[2,2]*x[2] + T[2]) \
-                                        / ((R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])**2))
-                H[0,1] = self.f_i * (-R[1,1] / (R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])
-                                    + R[0,1] * (R[1,0]*x[0] + R[1,1]*x[1] + R[1,2]*x[2] + T[1]) \
-                                        / ((R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])**2))
-                H[1,1] = self.f_j * (-R[2,1] / (R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])
-                                    + R[0,1] * (R[2,0]*x[0] + R[2,1]*x[1] + R[2,2]*x[2] + T[2]) \
-                                        / ((R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])**2))
-                H[0,2] = self.f_i * (-R[1,2] / (R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])
-                                    + R[0,2] * (R[1,0]*x[0] + R[1,1]*x[1] + R[1,2]*x[2] + T[1]) \
-                                        / ((R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])**2))
-                H[1,2] = self.f_j * (-R[2,2] / (R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])
-                                    + R[0,2] * (R[2,0]*x[0] + R[2,1]*x[1] + R[2,2]*x[2] + T[2]) \
-                                        / ((R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])**2))
+                # precompute:
+                # FIXME: check up
+                X = R[0,:]@x[:3] + T[0]
+                Y = R[1,:]@x[:3] + T[1]
+                Z = R[2,:]@x[:3] + T[2]
+                den = X*X
+
+                # u = f_i * ( -Y/X ) + c_i
+                H[0,0] = self.f_i * ( -R[1,0]/X + (Y*R[0,0])/den )
+                H[0,1] = self.f_i * ( -R[1,1]/X + (Y*R[0,1])/den )
+                H[0,2] = self.f_i * ( -R[1,2]/X + (Y*R[0,2])/den )
+
+                # v = f_j * ( -Z/X ) + c_j
+                H[1,0] = self.f_j * ( -R[2,0]/X + (Z*R[0,0])/den )
+                H[1,1] = self.f_j * ( -R[2,1]/X + (Z*R[0,1])/den )
+                H[1,2] = self.f_j * ( -R[2,2]/X + (Z*R[0,2])/den )
+                
+                # H[0,0] = self.f_i * (-R[1,0] / (R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])
+                #                     + R[0,0] * (R[1,0]*x[0] + R[1,1]*x[1] + R[1,2]*x[2] + T[1]) \
+                #                         / ((R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])**2))
+                # H[1,0] = self.f_j * (-R[2,0] / (R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])
+                #                     + R[0,0] * (R[2,0]*x[0] + R[2,1]*x[1] + R[2,2]*x[2] + T[2]) \
+                #                         / ((R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])**2))
+                # H[0,1] = self.f_i * (-R[1,1] / (R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])
+                #                     + R[0,1] * (R[1,0]*x[0] + R[1,1]*x[1] + R[1,2]*x[2] + T[1]) \
+                #                         / ((R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])**2))
+                # H[1,1] = self.f_j * (-R[2,1] / (R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])
+                #                     + R[0,1] * (R[2,0]*x[0] + R[2,1]*x[1] + R[2,2]*x[2] + T[2]) \
+                #                         / ((R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])**2))
+                # H[0,2] = self.f_i * (-R[1,2] / (R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])
+                #                     + R[0,2] * (R[1,0]*x[0] + R[1,1]*x[1] + R[1,2]*x[2] + T[1]) \
+                #                         / ((R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])**2))
+                # H[1,2] = self.f_j * (-R[2,2] / (R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])
+                #                     + R[0,2] * (R[2,0]*x[0] + R[2,1]*x[1] + R[2,2]*x[2] + T[2]) \
+                #                         / ((R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0])**2))
         return H   
         
     def generate_measurement(self, num_frame, z, meas_list):
@@ -139,9 +156,9 @@ class Sensor:
         # Step 4: remove restriction to lidar in order to include camera as well
         ############
         
-        if self.name == 'lidar':
-            meas = Measurement(num_frame, z, self)
-            meas_list.append(meas)
+        #if self.name == 'lidar':
+        meas = Measurement(num_frame, z, self)
+        meas_list.append(meas)
         return meas_list
         
         ############
@@ -183,6 +200,8 @@ class Measurement:
             self.z = np.zeros((sensor.dim_meas,1)) # measurement vector
             self.z[0] = z[0]
             self.z[1] = z[1]
+            sigma_cam_i = 20 #FIXME: experiment
+            sigma_cam_j = 20 #FIXME: experiment
             self.R = np.matrix([[sigma_cam_i**2, 0], # measurement noise covariance matrix
                     [0, sigma_cam_j**2]])
             self.width = z[2]

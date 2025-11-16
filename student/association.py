@@ -135,37 +135,29 @@ class Association:
             H[1,1] = 1.0  # py
             H[2,2] = 1.0  # pz
             z_pred = H @ track.x
-#            
-            gamma = meas.z - z_pred
-            H = np.asarray(H)
-            P = np.asarray(track.P)
-            R = np.asarray(meas.R)
-            S = H @ track.P @ H.transpose() + meas.R
-            MHD = gamma.transpose()*np.linalg.inv(S)*gamma # Mahalanobis distance formula
-            MHD = MHD[0,0]
-            #if self.gating(MHD, meas.sensor):
-            return MHD
-            #else:
-            #    return np.inf
-#
+
         elif sensor == "camera":
             assert meas.z.shape == (2,1), f"camera z must be (2,1), got {meas.z.shape}"
             assert meas.R.shape == (2,2), f"camera R must be (2,2), got {meas.R.shape}"
             H = meas.sensor.get_H(track.x)
             z_pred = meas.sensor.get_hx(track.x)
-#            
-            gamma = meas.z - z_pred
-            S = H*track.P*H.transpose() + meas.R
-            MHD = gamma.transpose()*np.linalg.inv(S)*gamma # Mahalanobis distance formula
-            MHD = MHD[0,0]
-            #if self.gating(MHD, meas.sensor):
-            return MHD
-            #else:
-            #    return np.inf
-#
-            assert H.shape == (2, n), f"camera H must be (2,{n}), got {H.shape}"
+            
+            #assert H.shape == (2, n), f"camera H must be (2,{n}), got {H.shape}"
         else:
             raise ValueError(f"Unknown sensor type: {meas.sensor.name}")
+
+        gamma = meas.z - z_pred
+        H = np.asarray(H)
+        P = np.asarray(track.P)
+        R = np.asarray(meas.R)
+        S = H @ track.P @ H.transpose() + meas.R
+        MHD = gamma.transpose()*np.linalg.inv(S)*gamma # Mahalanobis distance formula
+        MHD = MHD[0,0]
+        # TODO: check if things still work OK after gating introduced
+        if self.gating(MHD, meas.sensor):
+            return MHD
+        else:
+            return np.inf
 
 
         
@@ -195,6 +187,9 @@ class Association:
             # Kalman update
             print('update track', track.id, 'with', meas_list[ind_meas].sensor.name, 'measurement', ind_meas)
             KF.update(track, meas_list[ind_meas])
+            print(f"track id={manager.track_list[ind_track].id} x=({manager.track_list[ind_track].x[0,0]:.2f}, {manager.track_list[ind_track].x[1,0]:.2f}, {manager.track_list[0].x[2,0]:.2f})")
+            print(f"measurement id={ind_meas} z=({meas_list[ind_meas].z[0,0]:.2f}, {meas_list[ind_meas].z[1,0]:.2f})")
+
             
             # update score and track state 
             manager.handle_updated_track(track)

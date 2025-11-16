@@ -228,6 +228,8 @@ while True:
                     box = label.box
                     # use camera labels as measurements and add some random noise
                     z = [box.center_x, box.center_y, box.width, box.length]
+                    #v_bottom = box.center_y + 0.5 * box.height
+                    #z = [box.center_x, v_bottom, box.width, box.length]
                     z[0] = z[0] + np.random.normal(0, params.sigma_cam_i) 
                     z[1] = z[1] + np.random.normal(0, params.sigma_cam_j)
                     meas_list_cam = camera.generate_measurement(cnt_frame, z, meas_list_cam)
@@ -243,8 +245,8 @@ while True:
             association.associate_and_update(manager, meas_list_lidar, KF)
             
             # associate all camera measurements to all tracks
-            print ("SKIP camera")
-#            association.associate_and_update(manager, meas_list_cam, KF)
+            print ("camera")
+            association.associate_and_update(manager, meas_list_cam, KF)
             
             # save results for evaluation
             result_dict = {}
